@@ -1,0 +1,67 @@
+Help on package healpix:
+
+NAME
+    healpix - Python package for HEALPix discretisation of the sphere
+
+FUNCTIONS
+    ang2pix(...)
+    
+    npix2nside(...)
+    
+    nside2npix(...)
+    
+    pix2ang(nside, ipix, nest=False, lonlat=False)
+        Return the centres of the given HEALPix pixels as spherical coordinates.
+        
+        This function produces the spherical coordinates of each HEALPix pixel
+        listed in `ipix`, which can be scalar or array-like.  The pixel indices use
+        the `nside` resolution parameter and either the RING scheme (if `nest` is
+        false, the default) or the NEST scheme (if `nest` is true).
+        
+        Returns either a tuple `theta, phi` of mathematical coordinates in radians
+        if `lonlat` is False (the default), or a tuple `lon, lat` of longitude and
+        latitude in degrees if `lonlat` is True.  The output is of the same shape as
+        the input.
+    
+    pix2vec(nside, ipix, nest=False)
+        Return the centres of the given HEALPix pixels as unit vectors.
+        
+        This function produces the unit vector of each HEALPix pixel listed in
+        `ipix`, which can be scalar or array-like.  The pixel indices use the 
+        `nside` resolution parameter and either the RING scheme (if `nest` is false,
+        the default) or the NEST scheme (if `nest` is true).
+        
+        Returns a tuple `x, y, z` of normalised vector components with the same 
+        shape as the input.
+    
+    randang(nside, ipix, nest=False, lonlat=False, rng=None)
+        Sample random spherical coordinates from the given HEALPix pixels.
+        
+        This function produces one pair of random spherical coordinates from each
+        HEALPix pixel listed in `ipix`, which can be scalar or array-like.  The
+        indices use the `nside` resolution parameter and either the RING scheme
+        (if `nest` is false, the default) or the NEST scheme (if `nest` is true).
+        
+        Returns either a tuple `theta, phi` of mathematical coordinates in radians
+        if `lonlat` is False (the default), or a tuple `lon, lat` of longitude and
+        latitude in degrees if `lonlat` is True.  The output is of the same shape as
+        the input.
+        
+        An optional numpy random number generator can be provided using `rng`;
+        otherwise, a new numpy.random.default_rng() is used.
+    
+    randvec(nside, ipix, nest=False, rng=None)
+        Sample random unit vectors from the given HEALPix pixels.
+        
+        This function produces one random unit vector from each HEALPix pixel listed
+        in `ipix`, which can be scalar or array-like.  The pixel indices use the 
+        `nside` resolution parameter and either the RING scheme (if `nest` is false,
+        the default) or the NEST scheme (if `nest` is true).
+        
+        Returns a tuple `x, y, z` of normalised vector components with the same 
+        shape as the input.
+        
+        An optional numpy random number generator can be provided using `rng`;
+        otherwise, a new numpy.random.default_rng() is used.
+    
+    vec2pix(...)
