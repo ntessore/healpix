@@ -662,6 +662,58 @@ static PyObject* cring2vec_uv(PyObject* self, PyObject* args) {
 }
 
 
+static void vring2nest(void* args, npy_intp size, void** data) {
+    int64_t nside = *(int64_t*)args;
+    int64_t* ipring = data[0], *ipnest = data[1];
+    for (npy_intp i = 0; i < size; ++i)
+        ipnest[i] = ring2nest(nside, ipring[i]);
+}
+
+
+PyDoc_STRVAR(cring2nest_doc,
+"ring2nest(nside, ipring, ipnest=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cring2nest(PyObject* self, PyObject* args) {
+    Py_ssize_t nside;
+    PyObject* op[] = {NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "nO|O:ring2nest", &nside, &op[0], &op[1]))
+        return NULL;
+
+    return vectorize(vring2nest, &nside, 1, 1, op, types);
+}
+
+
+static void vnest2ring(void* args, npy_intp size, void** data) {
+    int64_t nside = *(int64_t*)args;
+    int64_t* ipring = data[0], *ipnest = data[1];
+    for (npy_intp i = 0; i < size; ++i)
+        ipnest[i] = nest2ring(nside, ipring[i]);
+}
+
+
+PyDoc_STRVAR(cnest2ring_doc,
+"nest2ring(nside, ipnest, ipring=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cnest2ring(PyObject* self, PyObject* args) {
+    Py_ssize_t nside;
+    PyObject* op[] = {NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "nO|O:nest2ring", &nside, &op[0], &op[1]))
+        return NULL;
+
+    return vectorize(vnest2ring, &nside, 1, 1, op, types);
+}
+
+
 PyDoc_STRVAR(cnside2npix_doc, "nside2npix(nside, /)\n--\n\n");
 
 
@@ -713,6 +765,8 @@ static PyMethodDef methods[] = {
     {"vec2ring_uv", cvec2ring_uv, METH_VARARGS, cvec2ring_uv_doc},
     {"nest2vec_uv", cnest2vec_uv, METH_VARARGS, cnest2vec_uv_doc},
     {"ring2vec_uv", cring2vec_uv, METH_VARARGS, cring2vec_uv_doc},
+    {"ring2nest", cring2nest, METH_VARARGS, cring2nest_doc},
+    {"nest2ring", cnest2ring, METH_VARARGS, cnest2ring_doc},
     {"nside2npix", cnside2npix, METH_VARARGS, cnside2npix_doc},
     {"npix2nside", cnpix2nside, METH_VARARGS, cnpix2nside_doc},
     {NULL, NULL}

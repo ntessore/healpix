@@ -89,6 +89,14 @@ def test_vec_ring_uv(nside):
     npt.assert_allclose(result[2], v)
 
 
+@pytest.mark.nest
+def test_nest_ring(nside):
+    from chealpix import nest2ring, ring2nest
+    ipix = np.arange(12*nside**2)
+    npt.assert_array_equal(nest2ring(nside, ring2nest(nside, ipix)), ipix)
+    npt.assert_array_equal(ring2nest(nside, nest2ring(nside, ipix)), ipix)
+
+
 def test_nside2npix(nside):
     from chealpix import nside2npix
     assert nside2npix(nside) == 12*nside**2
