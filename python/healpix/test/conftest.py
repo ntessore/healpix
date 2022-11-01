@@ -57,3 +57,8 @@ def base_pixel_vec(request):
     y = np.array([a, a, -a, -a, 0, 1, 0, -1, a, a, -a, -a])
     z = np.array([b, b, b, b, 0, 0, 0, 0, -b, -b, -b, -b])
     return x, y, z
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+            'markers', 'nest: mark test as using the NEST scheme')
