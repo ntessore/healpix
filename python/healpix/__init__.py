@@ -72,9 +72,8 @@ def ang2pix(nside, theta, phi, nest=False, lonlat=False):
                    ['buffered', 'external_loop', 'zerosize_ok'],
                    [['readonly']]*2 + [['writeonly', 'allocate']]*1,
                    [None, None, int]) as it:
-        theta, phi = None, None
         for lon, lat, ipix in it:
-            theta, phi = thetaphi_from_lonlat(lon, lat, theta, phi)
+            theta, phi = thetaphi_from_lonlat(lon, lat)
             if nest:
                 _chp.ang2nest(nside, theta, phi, ipix)
             else:
