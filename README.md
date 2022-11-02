@@ -35,6 +35,9 @@ The Python package consists of two modules:
 
   * Random point picking in HEALPix pixels.
 
+For a function reference, run `pydoc healpix` (or `pydoc chealpix`) locally if
+you have the package installed, or see the [online reference][pydoc].
+
 The high-level functions in the `healpix` module can be used more or less
 interchangeably with functions from the *healpy* package.  However, in some
 cases, compatibility is sacrificed for consistency.
@@ -61,3 +64,5 @@ and therefore have minimal memory overhead:
 >>> 
 >>> # no memory overhead: only the 2G output arrays were used
 ```
+
+[pydoc]: https://github.com/ntessore/healpix/raw/main/python/reference.txt
