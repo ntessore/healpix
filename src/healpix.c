@@ -105,15 +105,15 @@ static int64_t compress_bits(int64_t v) {
 
 
 // A structure describing the discrete Healpix coordinate system.
-// f takes values in [0, 11], a and b lie in [0, nside).
+// f takes values in [0, 11], x and y lie in [0, nside).
 typedef struct {
-    int64_t a, b;
+    int64_t x, y;
     int32_t f;
 } t_hpd;
 
 
 static int64_t hpd2nest(int64_t nside, t_hpd hpd) {
-    return (hpd.f*nside*nside) + spread_bits(hpd.a) + (spread_bits(hpd.b)<<1);
+    return (hpd.f*nside*nside) + spread_bits(hpd.x) + (spread_bits(hpd.y)<<1);
 }
 
 
@@ -125,24 +125,24 @@ static t_hpd nest2hpd(int64_t nside, int64_t pix) {
 
 static int64_t hpd2ring(int64_t nside, t_hpd hpd) {
   int64_t nl4 = 4*nside;
-  int64_t jr = (jrll[hpd.f]*nside) - hpd.a - hpd.b - 1;
+  int64_t jr = (jrll[hpd.f]*nside) - hpd.x - hpd.y - 1;
 
   if (jr<nside)
     {
-    int64_t jp = (jpll[hpd.f]*jr + hpd.a - hpd.b + 1) / 2;
+    int64_t jp = (jpll[hpd.f]*jr + hpd.x - hpd.y + 1) / 2;
     jp = (jp>nl4) ? jp-nl4 : ((jp<1) ? jp+nl4 : jp);
     return 2*jr*(jr-1) + jp - 1;
     }
   else if (jr > 3*nside)
     {
     jr = nl4-jr;
-    int64_t jp = (jpll[hpd.f]*jr + hpd.a - hpd.b + 1) / 2;
+    int64_t jp = (jpll[hpd.f]*jr + hpd.x - hpd.y + 1) / 2;
     jp = (jp>nl4) ? jp-nl4 : ((jp<1) ? jp+nl4 : jp);
     return 12*nside*nside - 2*(jr+1)*jr + jp - 1;
     }
   else
     {
-    int64_t jp = (jpll[hpd.f]*nside + hpd.a - hpd.b + 1 + ((jr-nside)&1)) / 2;
+    int64_t jp = (jpll[hpd.f]*nside + hpd.x - hpd.y + 1 + ((jr-nside)&1)) / 2;
     jp = (jp>nl4) ? jp-nl4 : ((jp<1) ? jp+nl4 : jp);
     return 2*nside*(nside-1) + (jr-nside)*nl4 + jp - 1;
     }
@@ -231,12 +231,12 @@ static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
         double jm = temp1+temp2;    // index of descending edge line, [0; 5)
         int ifp = (int)jp;          // in {0,4}
         int ifm = (int)jm;
-        hpd.a = (jm-ifm)*nside;
-        hpd.b = (1+ifp - jp)*nside;
+        hpd.x = (jm-ifm)*nside;
+        hpd.y = (1+ifp - jp)*nside;
         hpd.f = (ifp==ifm) ? (ifp|4) : ((ifp<ifm) ? ifp : (ifm+8));
         if (u) {
-            *u = (jm-ifm)*nside - hpd.a;
-            *v = (1+ifp - jp)*nside - hpd.b;
+            *u = (jm-ifm)*nside - hpd.x;
+            *v = (1+ifp - jp)*nside - hpd.y;
         }
     } else {
         // polar region
@@ -244,7 +244,8 @@ static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
         if (ntt >= 4)
             ntt = 3;
         double tp = tt - ntt;       // [0;1)
-        double tmp = sqrt(3.*(1.-za));
+        /* double tmp = sqrt(3.*(1.-za)); */
+        double tmp = loc.s/sqrt((1.+za)*(1./3.)); // FIXME optimize!
 
         double jp = tp*tmp;         // increasing edge line index
         double jm = (1.0-tp)*tmp;   // decreasing edge line index
@@ -259,35 +260,36 @@ static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
         } else {
             ntt += 8;
         }
-        hpd.a = jp*nside;
-        hpd.b = jm*nside;
+        hpd.x = jp*nside;
+        hpd.y = jm*nside;
         hpd.f = ntt;
         if (u) {
-            *u = jp*nside - hpd.a;
-            *v = jm*nside - hpd.b;
+            *u = jp*nside - hpd.x;
+            *v = jm*nside - hpd.y;
         }
     }
     return hpd;
 }
 
 
-static t_loc hpd2loc(int64_t nside, t_hpd hpd, double dx, double dy) {
+static t_loc hpd2loc(int64_t nside, t_hpd hpd, double u, double v) {
     double z, s, phi;
-    const double x = (hpd.a - hpd.b + dx)/nside;
-    const double y = (hpd.a + hpd.b - nside + dy)/nside;
+    const double x = (hpd.x+u)/nside;
+    const double y = (hpd.y+v)/nside;
     const int32_t r = 1 - hpd.f/4;
-    const double m = 1 - r*y;
-    if (m < 1) {
+    const double h = r-1 + (x+y);
+    double m = 2 - r*h;
+    if (m < 1.) {
         // polar cap
-        const double tmp = m*m*(1./3.);
+        double tmp = m*m*(1./3.);
         z = r*(1. - tmp);
         s = sqrt(tmp*(2.-tmp));
-        phi = (PI/4.)*(jpll[hpd.f] + x/m);
+        phi = (PI/4)*(jpll[hpd.f] + (x-y)/m);
     } else {
         // equatorial region
-        z = (y+r)*(2./3.);
+        z = h*(2./3.);
         s = sqrt((1.+z)*(1.-z));
-        phi = (PI/4.)*(jpll[hpd.f] + x);
+        phi = (PI/4)*(jpll[hpd.f] + (x-y));
     }
     return (t_loc){z, s, phi};
 }
@@ -337,22 +339,22 @@ int64_t vec2nest(int64_t nside, t_vec vec) {
 
 
 t_ang ring2ang(int64_t nside, int64_t ipix) {
-    return loc2ang(hpd2loc(nside, ring2hpd(nside, ipix), 0, 1));
+    return loc2ang(hpd2loc(nside, ring2hpd(nside, ipix), 0.5, 0.5));
 }
 
 
 t_ang nest2ang(int64_t nside, int64_t ipix) {
-    return loc2ang(hpd2loc(nside, nest2hpd(nside, ipix), 0, 1));
+    return loc2ang(hpd2loc(nside, nest2hpd(nside, ipix), 0.5, 0.5));
 }
 
 
 t_vec ring2vec(int64_t nside, int64_t ipix) {
-    return loc2vec(hpd2loc(nside, ring2hpd(nside, ipix), 0, 1));
+    return loc2vec(hpd2loc(nside, ring2hpd(nside, ipix), 0.5, 0.5));
 }
 
 
 t_vec nest2vec(int64_t nside, int64_t ipix) {
-    return loc2vec(hpd2loc(nside, nest2hpd(nside, ipix), 0, 1));
+    return loc2vec(hpd2loc(nside, nest2hpd(nside, ipix), 0.5, 0.5));
 }
 
 
@@ -380,20 +382,20 @@ int64_t vec2nest_uv(int64_t nside, t_vec vec, double* u, double* v) {
 
 
 t_ang ring2ang_uv(int64_t nside, int64_t ipix, double u, double v) {
-    return loc2ang(hpd2loc(nside, ring2hpd(nside, ipix), u-v, u+v));
+    return loc2ang(hpd2loc(nside, ring2hpd(nside, ipix), u, v));
 }
 
 
 t_ang nest2ang_uv(int64_t nside, int64_t ipix, double u, double v) {
-    return loc2ang(hpd2loc(nside, nest2hpd(nside, ipix), u-v, u+v));
+    return loc2ang(hpd2loc(nside, nest2hpd(nside, ipix), u, v));
 }
 
 
 t_vec ring2vec_uv(int64_t nside, int64_t ipix, double u, double v) {
-    return loc2vec(hpd2loc(nside, ring2hpd(nside, ipix), u-v, u+v));
+    return loc2vec(hpd2loc(nside, ring2hpd(nside, ipix), u, v));
 }
 
 
 t_vec nest2vec_uv(int64_t nside, int64_t ipix, double u, double v) {
-    return loc2vec(hpd2loc(nside, nest2hpd(nside, ipix), u-v, u+v));
+    return loc2vec(hpd2loc(nside, nest2hpd(nside, ipix), u, v));
 }
