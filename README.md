@@ -7,7 +7,10 @@ This package implements a lean set of routines for working with the HEALPix
 discretisation of the sphere.  It supports NSIDE parameters up to 2^29.
 
 The C library is based on the *healpix_bare* library, which was released under
-the 3-clause BSD license.
+the 3-clause BSD license, with the following additions:
+
+* Sub-pixel indexing.
+* Conversions between the UNIQ and RING/NEST pixel indexing schemes.
 
 If you are using this code in your research, please consider citing the
 original paper in your publications:

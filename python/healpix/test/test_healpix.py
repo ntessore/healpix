@@ -73,3 +73,15 @@ def test_vec_pix(nside, nest):
     from healpix import vec2pix, pix2vec
     ipix = np.arange(12*nside**2)
     npt.assert_array_equal(vec2pix(nside, *pix2vec(nside, ipix, nest), nest), ipix)
+
+
+def test_uniq_pix(nest):
+    from healpix import uniq2pix, pix2uniq, ring2nest
+    nside = 2**np.random.randint(0, 30, 1000)
+    ipix = np.random.randint(0, 12*nside**2)
+    ipnest = ipix if nest else [ring2nest(ns, ip) for ns, ip in zip(nside, ipix)]
+    uniq = pix2uniq(nside, ipix, nest)
+    npt.assert_array_equal(uniq, 4*nside**2 + ipnest)
+    nside_out, ipix_out = uniq2pix(uniq, nest)
+    npt.assert_array_equal(nside_out, nside)
+    npt.assert_array_equal(ipix_out, ipix)

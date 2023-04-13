@@ -11,11 +11,21 @@ FUNCTIONS
     
     ang2vec(theta, phi, lonlat=False)
     
+    nest2ring(nside, ipix)
+    
     npix2nside(npix)
     
     nside2npix(nside)
     
     pix2ang(nside, ipix, nest=False, lonlat=False)
+    
+    pix2uniq(nside, ipix, nest=False)
+        Convert RING or NEST to UNIQ pixel scheme.
+        
+        Returns a pixel index in the UNIQ scheme for each pair of resolution
+        parameter `nside` and pixel index `ipix` in the RING scheme (if
+        `nest` is false, the default) or the NEST scheme (if `nest` is
+        true).
     
     pix2vec(nside, ipix, nest=False)
     
@@ -49,12 +59,24 @@ FUNCTIONS
         An optional numpy random number generator can be provided using `rng`;
         otherwise, a new numpy.random.default_rng() is used.
     
+    ring2nest(nside, ipix)
+    
+    uniq2pix(uniq, nest=False)
+        Convert from UNIQ to RING or NEST pixel scheme.
+        
+        Returns a tuple `nside, ipix` of resolution parameters and pixel
+        indices in the RING scheme (if `nest` is false, the default) or the
+        NEST scheme (if `nest` is true).
+    
     vec2ang(x, y, z, lonlat=False)
     
     vec2pix(nside, x, y, z, nest=False)
 
 DATA
     NSIDE_MAX = 536870912
+
+VERSION
+    2023.4
 
 
 Help on module chealpix:
@@ -79,6 +101,8 @@ FUNCTIONS
     
     nest2ring(nside, ipnest, ipring=None, /)
     
+    nest2uniq(nside, ipix, uniq=None, /)
+    
     nest2vec(nside, ipix, x=None, y=None, z=None, /)
     
     nest2vec_uv(nside, ipix, u, v, x=None, y=None, z=None, /)
@@ -93,9 +117,15 @@ FUNCTIONS
     
     ring2nest(nside, ipring, ipnest=None, /)
     
+    ring2uniq(nside, ipix, uniq=None, /)
+    
     ring2vec(nside, ipix, x=None, y=None, z=None, /)
     
     ring2vec_uv(nside, ipix, u, v, x=None, y=None, z=None, /)
+    
+    uniq2nest(uniq, nside=None, ipix=None, /)
+    
+    uniq2ring(uniq, nside=None, ipix=None, /)
     
     vec2ang(nside, x, y, z, theta=None, phi=None, /)
     
@@ -109,5 +139,8 @@ FUNCTIONS
 
 DATA
     NSIDE_MAX = 536870912
+
+VERSION
+    2023.4
 
 

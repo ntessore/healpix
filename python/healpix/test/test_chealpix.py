@@ -111,3 +111,21 @@ def test_npix2nside_invalid():
     from chealpix import npix2nside
     assert npix2nside(7) == -1
     assert npix2nside(49) == -1
+
+
+@pytest.mark.nest
+def test_uniq_nest(nside):
+    from chealpix import uniq2nest, nest2uniq
+    ipix = np.arange(12*nside**2)
+    nside_out, ipix_out = uniq2nest(nest2uniq(nside, ipix))
+    npt.assert_array_equal(nside_out, nside)
+    npt.assert_array_equal(ipix_out, ipix)
+
+
+@pytest.mark.nest
+def test_uniq_ring(nside):
+    from chealpix import uniq2ring, ring2uniq
+    ipix = np.arange(12*nside**2)
+    nside_out, ipix_out = uniq2ring(ring2uniq(nside, ipix))
+    npt.assert_array_equal(nside_out, nside)
+    npt.assert_array_equal(ipix_out, ipix)

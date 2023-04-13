@@ -2,6 +2,9 @@
 # license: BSD-3-Clause
 '''Python package for HEALPix discretisation of the sphere'''
 
+__version__ = '2023.4'
+
+
 import numpy as np
 import chealpix as _chp
 
@@ -175,3 +178,42 @@ def randvec(nside, ipix, nest=False, rng=None):
         return _chp.nest2vec_uv(nside, ipix, u, v, u, v)
     else:
         return _chp.ring2vec_uv(nside, ipix, u, v, u, v)
+
+
+def nest2ring(nside, ipix):
+    return _chp.nest2ring(nside, ipix)
+
+
+def ring2nest(nside, ipix):
+    return _chp.ring2nest(nside, ipix)
+
+
+def uniq2pix(uniq, nest=False):
+    '''Convert from UNIQ to RING or NEST pixel scheme.
+
+    Returns a tuple `nside, ipix` of resolution parameters and pixel
+    indices in the RING scheme (if `nest` is false, the default) or the
+    NEST scheme (if `nest` is true).
+
+    '''
+    if nest:
+        nside, ipix = _chp.uniq2nest(uniq)
+    else:
+        nside, ipix = _chp.uniq2ring(uniq)
+    return nside, ipix
+
+
+def pix2uniq(nside, ipix, nest=False):
+    '''Convert RING or NEST to UNIQ pixel scheme.
+
+    Returns a pixel index in the UNIQ scheme for each pair of resolution
+    parameter `nside` and pixel index `ipix` in the RING scheme (if
+    `nest` is false, the default) or the NEST scheme (if `nest` is
+    true).
+
+    '''
+    if nest:
+        uniq = _chp.nest2uniq(nside, ipix)
+    else:
+        uniq = _chp.ring2uniq(nside, ipix)
+    return uniq

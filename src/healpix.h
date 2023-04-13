@@ -161,6 +161,32 @@ t_vec nest2vec_uv(int64_t nside, int64_t ipix, double u, double v);
 t_vec ring2vec_uv(int64_t nside, int64_t ipix, double u, double v);
 
 
+// Conversions to UNIQ pixel index scheme
+
+
+// Describe a pixel index in RING or NEST scheme and its nside parameter
+typedef struct {
+    int64_t nside;
+    int64_t ipix;
+} t_pix;
+
+
+// Convert from UNIQ to NEST scheme and nside parameter
+t_pix uniq2nest(int64_t uniq);
+
+
+// Convert from UNIQ to RING scheme and nside parameter
+t_pix uniq2ring(int64_t uniq);
+
+
+// Convert from NEST scheme and nside parameter to UNIQ
+int64_t nest2uniq(int64_t nside, int64_t ipix);
+
+
+// Convert from RING scheme and nside parameter to UNIQ
+int64_t ring2uniq(int64_t nside, int64_t ipix);
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

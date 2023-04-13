@@ -28,6 +28,12 @@ static void setvec(t_vec vec, double* x, double* y, double* z) {
 }
 
 
+static void setpix(t_pix pix, int64_t* nside, int64_t* ipix) {
+    *nside = pix.nside;
+    *ipix = pix.ipix;
+}
+
+
 typedef void (*vecfunc)(void*, npy_intp, void**);
 
 
@@ -196,7 +202,7 @@ static void vang2nest(void* args, npy_intp size, void** data) {
 }
 
 
-PyDoc_STRVAR(cang2nest_doc, 
+PyDoc_STRVAR(cang2nest_doc,
 "ang2nest(nside, theta, phi, ipix=None, /)\n"
 "--\n"
 "\n");
@@ -429,7 +435,7 @@ static void vang2nest_uv(void* args, npy_intp size, void** data) {
 }
 
 
-PyDoc_STRVAR(cang2nest_uv_doc, 
+PyDoc_STRVAR(cang2nest_uv_doc,
 "ang2nest_uv(nside, theta, phi, ipix=None, u=None, v=None, /)\n"
 "--\n"
 "\n");
@@ -746,6 +752,105 @@ static PyObject* cnpix2nside(PyObject* self, PyObject* args) {
 }
 
 
+static void vuniq2nest(void* args, npy_intp size, void** data) {
+    int64_t* uniq = data[0], *nside = data[1], *ipix = data[2];
+    for (npy_intp i = 0; i < size; ++i)
+        setpix(uniq2nest(uniq[i]), &nside[i], &ipix[i]);
+}
+
+
+PyDoc_STRVAR(cuniq2nest_doc,
+"uniq2nest(uniq, nside=None, ipix=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cuniq2nest(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "O|OO:uniq2nest", &op[0], &op[1], &op[2]))
+        return NULL;
+
+    return vectorize(vuniq2nest, NULL, 1, 2, op, types);
+}
+
+
+static void vuniq2ring(void* args, npy_intp size, void** data) {
+    int64_t* uniq = data[0], *nside = data[1], *ipix = data[2];
+    for (npy_intp i = 0; i < size; ++i)
+        setpix(uniq2ring(uniq[i]), &nside[i], &ipix[i]);
+}
+
+
+PyDoc_STRVAR(cuniq2ring_doc,
+"uniq2ring(uniq, nside=None, ipix=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cuniq2ring(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "O|OO:uniq2ring", &op[0], &op[1], &op[2]))
+        return NULL;
+
+    return vectorize(vuniq2ring, NULL, 1, 2, op, types);
+}
+
+
+static void vnest2uniq(void* args, npy_intp size, void** data) {
+    int64_t* nside = data[0], *ipix = data[1], *uniq = data[2];
+    for (npy_intp i = 0; i < size; ++i)
+        uniq[i] = nest2uniq(nside[i], ipix[i]);
+}
+
+
+PyDoc_STRVAR(cnest2uniq_doc,
+"nest2uniq(nside, ipix, uniq=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cnest2uniq(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "OO|O:nest2uniq", &op[0], &op[1], &op[2]))
+        return NULL;
+
+    return vectorize(vnest2uniq, NULL, 2, 1, op, types);
+}
+
+
+static void vring2uniq(void* args, npy_intp size, void** data) {
+    int64_t* nside = data[0], *ipix = data[1], *uniq = data[2];
+    for (npy_intp i = 0; i < size; ++i)
+        uniq[i] = ring2uniq(nside[i], ipix[i]);
+}
+
+
+PyDoc_STRVAR(cring2uniq_doc,
+"ring2uniq(nside, ipix, uniq=None, /)\n"
+"--\n"
+"\n");
+
+
+static PyObject* cring2uniq(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+
+    if (!PyArg_ParseTuple(args, "OO|O:ring2uniq", &op[0], &op[1], &op[2]))
+        return NULL;
+
+    return vectorize(vring2uniq, NULL, 2, 1, op, types);
+}
+
+
+static const char* version = "2023.4";
+
+
 static PyMethodDef methods[] = {
     {"ang2vec", cang2vec, METH_VARARGS, cang2vec_doc},
     {"vec2ang", cvec2ang, METH_VARARGS, cvec2ang_doc},
@@ -769,6 +874,10 @@ static PyMethodDef methods[] = {
     {"nest2ring", cnest2ring, METH_VARARGS, cnest2ring_doc},
     {"nside2npix", cnside2npix, METH_VARARGS, cnside2npix_doc},
     {"npix2nside", cnpix2nside, METH_VARARGS, cnpix2nside_doc},
+    {"uniq2nest", cuniq2nest, METH_VARARGS, cuniq2nest_doc},
+    {"uniq2ring", cuniq2ring, METH_VARARGS, cuniq2ring_doc},
+    {"nest2uniq", cnest2uniq, METH_VARARGS, cnest2uniq_doc},
+    {"ring2uniq", cring2uniq, METH_VARARGS, cring2uniq_doc},
     {NULL, NULL}
 };
 
@@ -786,6 +895,7 @@ PyMODINIT_FUNC PyInit_chealpix(void) {
     PyObject* module = PyModule_Create(&module_def);
     if (!module)
         return NULL;
+    PyModule_AddStringConstant(module, "__version__", version);
     PyModule_AddIntConstant(module, "NSIDE_MAX", NSIDE_MAX);
     import_array();
     if (PyErr_Occurred())

@@ -20,6 +20,82 @@ static double invz(double z, double s) {
 }
 
 
+#ifdef _MSC_VER
+#include <intrin.h>  // for _BitScanReverse64
+#endif
+
+
+// count leading zeros
+static inline int clz(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_clzll(x);
+#elif defined(_MSC_VER)
+    unsigned long bsr;
+    return _BitScanReverse64(&bsr, x) ? 63 - bsr : 64;
+#else
+    // taken from https://stackoverflow.com/a/70550680 under CC BY-SA 4.0
+    static const uint8_t clz64_tab[64] = {
+        63,  5, 62,  4, 16, 10, 61,  3, 24, 15, 36,  9, 30, 21, 60,  2,
+        12, 26, 23, 14, 45, 35, 43,  8, 33, 29, 52, 20, 49, 41, 59,  1,
+         6, 17, 11, 25, 37, 31, 22, 13, 27, 46, 44, 34, 53, 50, 42,  7,
+        18, 38, 32, 28, 47, 54, 51, 19, 39, 48, 55, 40, 56, 57, 58,  0,
+    };
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x |= x >> 32;
+    return clz64_tab[(uint64_t)(x * 0x03f6eaf2cd271461u) >> 58];
+#endif
+}
+
+// fast integer log2
+int ilog2(uint64_t x) {
+    return x == 0 ? -1 : 63 - clz(x);
+}
+
+
+// fast integer square root
+// taken from https://stackoverflow.com/a/70550680 under CC BY-SA 4.0
+uint32_t isqrt(uint64_t x) {
+    // isqrt64_tab[k] = isqrt(256*(k+65)-1) for 0 <= k < 192
+    static const uint8_t isqrt64_tab[192] = {
+        128, 129, 130, 131, 132, 133, 134, 135, 136, 137,
+        138, 139, 140, 141, 142, 143, 143, 144, 145, 146,
+        147, 148, 149, 150, 150, 151, 152, 153, 154, 155,
+        155, 156, 157, 158, 159, 159, 160, 161, 162, 163,
+        163, 164, 165, 166, 167, 167, 168, 169, 170, 170,
+        171, 172, 173, 173, 174, 175, 175, 176, 177, 178,
+        178, 179, 180, 181, 181, 182, 183, 183, 184, 185,
+        185, 186, 187, 187, 188, 189, 189, 190, 191, 191,
+        192, 193, 193, 194, 195, 195, 196, 197, 197, 198,
+        199, 199, 200, 201, 201, 202, 203, 203, 204, 204,
+        205, 206, 206, 207, 207, 208, 209, 209, 210, 211,
+        211, 212, 212, 213, 214, 214, 215, 215, 216, 217,
+        217, 218, 218, 219, 219, 220, 221, 221, 222, 222,
+        223, 223, 224, 225, 225, 226, 226, 227, 227, 228,
+        229, 229, 230, 230, 231, 231, 232, 232, 233, 234,
+        234, 235, 235, 236, 236, 237, 237, 238, 238, 239,
+        239, 240, 241, 241, 242, 242, 243, 243, 244, 244,
+        245, 245, 246, 246, 247, 247, 248, 248, 249, 249,
+        250, 250, 251, 251, 252, 252, 253, 253, 254, 254,
+        255, 255,
+    };
+
+    if (x == 0)
+        return 0;
+
+    int lz = clz(x) & 62;
+    x <<= lz;
+    uint32_t y = isqrt64_tab[(x >> 56) - 64];
+    y = (y << 7) + (x >> 41) / y;
+    y = (y << 15) + (x >> 17) / y;
+    y -= x < (uint64_t)y * y;
+    return y >> (lz >> 1);
+}
+
+
 /* conversions between continuous coordinate systems */
 
 // A structure describing a location in cylindrical coordinates.
@@ -67,19 +143,6 @@ t_ang vec2ang(t_vec vec) {
 
 
 // conversions between discrete coordinate systems
-
-
-static int64_t isqrt(int64_t v) {
-    int64_t res = sqrt(v+0.5);
-    if (v < ((int64_t)(1)<<50))
-        return res;
-    if (res*res > v) {
-        --res;
-    } else if ((res+1)*(res+1) <= v) {
-        ++res;
-    }
-    return res;
-}
 
 
 static int64_t spread_bits(int64_t v) {
@@ -398,4 +461,38 @@ t_vec ring2vec_uv(int64_t nside, int64_t ipix, double u, double v) {
 
 t_vec nest2vec_uv(int64_t nside, int64_t ipix, double u, double v) {
     return loc2vec(hpd2loc(nside, nest2hpd(nside, ipix), u, v));
+}
+
+
+// conversions from or to UNIQ pixel scheme
+
+
+t_pix uniq2nest(int64_t uniq) {
+    if (uniq < 4) {
+        return (t_pix){-1, -1};
+    } else {
+        int order = ilog2(uniq)/2 - 1;
+        return (t_pix){1ll << order, uniq - 4*(1ll << 2*order)};
+    }
+}
+
+
+t_pix uniq2ring(int64_t uniq) {
+    t_pix pix = uniq2nest(uniq);
+    pix.ipix = nest2ring(pix.nside, pix.ipix);
+    return pix;
+}
+
+
+int64_t nest2uniq(int64_t nside, int64_t ipix) {
+    if (nside < 0 || ipix < 0) {
+        return -1;
+    } else {
+        return 4*nside*nside + ipix;
+    }
+}
+
+
+int64_t ring2uniq(int64_t nside, int64_t ipix) {
+    return nest2uniq(nside, ring2nest(nside, ipix));
 }
