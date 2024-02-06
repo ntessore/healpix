@@ -14,12 +14,12 @@ on:
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.runs-on }}
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        runs-on: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: dist-${{ matrix.runs-on }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -44,7 +45,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          path: dist/*.tar.gz
+          name: dist-sdist
+          path: dist
 
   upload_pypi:
     name: Upload to PyPI
@@ -56,7 +58,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: artifact
+          pattern: dist-*
+          merge-multiple: true
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@release/v1
