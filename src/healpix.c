@@ -29,7 +29,7 @@ static double invz(double z, double s) {
 static inline int clz(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_clzll(x);
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_X64))
     unsigned long bsr;
     return _BitScanReverse64(&bsr, x) ? 63 - bsr : 64;
 #else
