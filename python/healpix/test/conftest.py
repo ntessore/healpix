@@ -1,8 +1,6 @@
 import pytest
 import numpy as np
 
-np.random.seed(12345)
-
 
 def fixture_get(request, name, default):
     if name in request.fixturenames:
@@ -61,3 +59,8 @@ def base_pixel_vec(request):
     y = np.array([a, a, -a, -a, 0, 1, 0, -1, a, a, -a, -a])
     z = np.array([b, b, b, b, 0, 0, 0, 0, -b, -b, -b, -b])
     return x, y, z
+
+
+@pytest.fixture(scope="session")
+def rng():
+    return np.random.default_rng(12345)
