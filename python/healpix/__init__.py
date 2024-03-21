@@ -2,7 +2,7 @@
 # license: BSD-3-Clause
 '''Python package for HEALPix discretisation of the sphere'''
 
-__version__ = '2023.4'
+__version__ = '2024.1'
 
 
 import numpy as np
@@ -17,6 +17,7 @@ underlying integer type in the C library functions.
 
 '''
 
+
 def is_power_of_two(n):
     '''Return True if n is a power of two, or False otherwise.'''
     return (n & (n-1)) == 0
@@ -28,7 +29,7 @@ def check_nside(nside, nest=False):
         raise ValueError('nside must be a positive integer 1 <= nside <= '
                          f'2^{np.log2(NSIDE_MAX):.0f}')
     if nest and (nside & (nside-1)) != 0:
-        raise ValueError('nside must be power of two in the NEST scheme');
+        raise ValueError('nside must be power of two in the NEST scheme')
 
 
 def thetaphi_from_lonlat(lon, lat, theta=None, phi=None):
@@ -118,6 +119,16 @@ def npix2nside(npix):
     return _chp.npix2nside(npix)
 
 
+def nside2order(nside):
+    """Return the HEALPix order for a given NSIDE parameter."""
+    return _chp.nside2order(nside)
+
+
+def order2nside(order):
+    """Return the NSIDE parameter for a given HEALPix order."""
+    return _chp.order2nside(order)
+
+
 def randang(nside, ipix, nest=False, lonlat=False, rng=None):
     '''Sample random spherical coordinates from the given HEALPix pixels.
 
@@ -191,29 +202,28 @@ def ring2nest(nside, ipix):
 def uniq2pix(uniq, nest=False):
     '''Convert from UNIQ to RING or NEST pixel scheme.
 
-    Returns a tuple `nside, ipix` of resolution parameters and pixel
-    indices in the RING scheme (if `nest` is false, the default) or the
-    NEST scheme (if `nest` is true).
+    Returns a tuple `order, ipix` of HEALPix orders and pixel indices in
+    the RING scheme (if `nest` is false, the default) or the NEST scheme
+    (if `nest` is true).
 
     '''
     if nest:
-        nside, ipix = _chp.uniq2nest(uniq)
+        order, ipix = _chp.uniq2nest(uniq)
     else:
-        nside, ipix = _chp.uniq2ring(uniq)
-    return nside, ipix
+        order, ipix = _chp.uniq2ring(uniq)
+    return order, ipix
 
 
-def pix2uniq(nside, ipix, nest=False):
+def pix2uniq(order, ipix, nest=False):
     '''Convert RING or NEST to UNIQ pixel scheme.
 
-    Returns a pixel index in the UNIQ scheme for each pair of resolution
-    parameter `nside` and pixel index `ipix` in the RING scheme (if
-    `nest` is false, the default) or the NEST scheme (if `nest` is
-    true).
+    Returns a pixel index in the UNIQ scheme for each pair of HEALPix
+    order `order` and pixel index `ipix` in the RING scheme (if `nest`
+    is false, the default) or the NEST scheme (if `nest` is true).
 
     '''
     if nest:
-        uniq = _chp.nest2uniq(nside, ipix)
+        uniq = _chp.nest2uniq(order, ipix)
     else:
-        uniq = _chp.ring2uniq(nside, ipix)
+        uniq = _chp.ring2uniq(order, ipix)
     return uniq

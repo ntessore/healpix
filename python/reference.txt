@@ -17,15 +17,20 @@ FUNCTIONS
     
     nside2npix(nside)
     
+    nside2order(nside)
+        Return the HEALPix order for a given NSIDE parameter.
+    
+    order2nside(order)
+        Return the NSIDE parameter for a given HEALPix order.
+    
     pix2ang(nside, ipix, nest=False, lonlat=False)
     
-    pix2uniq(nside, ipix, nest=False)
+    pix2uniq(order, ipix, nest=False)
         Convert RING or NEST to UNIQ pixel scheme.
         
-        Returns a pixel index in the UNIQ scheme for each pair of resolution
-        parameter `nside` and pixel index `ipix` in the RING scheme (if
-        `nest` is false, the default) or the NEST scheme (if `nest` is
-        true).
+        Returns a pixel index in the UNIQ scheme for each pair of HEALPix
+        order `order` and pixel index `ipix` in the RING scheme (if `nest`
+        is false, the default) or the NEST scheme (if `nest` is true).
     
     pix2vec(nside, ipix, nest=False)
     
@@ -64,9 +69,9 @@ FUNCTIONS
     uniq2pix(uniq, nest=False)
         Convert from UNIQ to RING or NEST pixel scheme.
         
-        Returns a tuple `nside, ipix` of resolution parameters and pixel
-        indices in the RING scheme (if `nest` is false, the default) or the
-        NEST scheme (if `nest` is true).
+        Returns a tuple `order, ipix` of HEALPix orders and pixel indices in
+        the RING scheme (if `nest` is false, the default) or the NEST scheme
+        (if `nest` is true).
     
     vec2ang(x, y, z, lonlat=False)
     
@@ -76,7 +81,7 @@ DATA
     NSIDE_MAX = 536870912
 
 VERSION
-    2023.4
+    2024.1
 
 
 Help on module chealpix:
@@ -101,7 +106,7 @@ FUNCTIONS
     
     nest2ring(nside, ipnest, ipring=None, /)
     
-    nest2uniq(nside, ipix, uniq=None, /)
+    nest2uniq(order, ipix, uniq=None, /)
     
     nest2vec(nside, ipix, x=None, y=None, z=None, /)
     
@@ -111,21 +116,25 @@ FUNCTIONS
     
     nside2npix(nside, /)
     
+    nside2order(nside, /)
+    
+    order2nside(order, /)
+    
     ring2ang(nside, ipix, theta=None, phi=None, /)
     
     ring2ang_uv(nside, ipix, u, v, theta=None, phi=None, /)
     
     ring2nest(nside, ipring, ipnest=None, /)
     
-    ring2uniq(nside, ipix, uniq=None, /)
+    ring2uniq(order, ipix, uniq=None, /)
     
     ring2vec(nside, ipix, x=None, y=None, z=None, /)
     
     ring2vec_uv(nside, ipix, u, v, x=None, y=None, z=None, /)
     
-    uniq2nest(uniq, nside=None, ipix=None, /)
+    uniq2nest(uniq, order=None, ipix=None, /)
     
-    uniq2ring(uniq, nside=None, ipix=None, /)
+    uniq2ring(uniq, order=None, ipix=None, /)
     
     vec2ang(nside, x, y, z, theta=None, phi=None, /)
     
@@ -141,6 +150,6 @@ DATA
     NSIDE_MAX = 536870912
 
 VERSION
-    2023.4
+    2024.1
 
 

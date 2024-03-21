@@ -28,13 +28,13 @@ static void setvec(t_vec vec, double* x, double* y, double* z) {
 }
 
 
-static void setpix(t_pix pix, int64_t* nside, int64_t* ipix) {
-    *nside = pix.nside;
+static void setpix(t_pix pix, npy_int8 *order, npy_int64 *ipix) {
+    *order = pix.order;
     *ipix = pix.ipix;
 }
 
 
-typedef void (*vecfunc)(void*, npy_intp, void**);
+typedef void (*vecfunc)(void*, npy_intp, char **, npy_intp *);
 
 
 PyObject* vectorize(vecfunc func, void* args, npy_intp nin, npy_intp nout,
@@ -59,8 +59,7 @@ PyObject* vectorize(vecfunc func, void* args, npy_intp nin, npy_intp nout,
 
     for (i = 0; i < nin; ++i) {
         op_[i] = (PyArrayObject*)PyArray_FromAny(op[i], NULL, 0, 0, 0, NULL);
-        op_flags[i] = NPY_ITER_READONLY | NPY_ITER_NBO | NPY_ITER_ALIGNED |
-                      NPY_ITER_CONTIG;
+        op_flags[i] = NPY_ITER_READONLY | NPY_ITER_NBO;
         op_dtypes[i] = PyArray_DescrFromType(types[i]);
         if (!op_[i] || !op_dtypes[i])
             goto fail;
@@ -73,8 +72,7 @@ PyObject* vectorize(vecfunc func, void* args, npy_intp nin, npy_intp nout,
             if (!op_[i])
                 goto fail;
         }
-        op_flags[i] = NPY_ITER_WRITEONLY | NPY_ITER_ALLOCATE | NPY_ITER_NBO |
-                      NPY_ITER_ALIGNED | NPY_ITER_CONTIG;
+        op_flags[i] = NPY_ITER_WRITEONLY | NPY_ITER_ALLOCATE | NPY_ITER_NBO;
         op_dtypes[i] = PyArray_DescrFromType(types[i]);
         if (!op_dtypes[i])
             goto fail;
@@ -83,19 +81,20 @@ PyObject* vectorize(vecfunc func, void* args, npy_intp nin, npy_intp nout,
     flags = NPY_ITER_EXTERNAL_LOOP | NPY_ITER_BUFFERED | NPY_ITER_GROWINNER |
             NPY_ITER_ZEROSIZE_OK;
 
-    iter = NpyIter_MultiNew(nop, op_, flags, NPY_KEEPORDER, NPY_SAFE_CASTING,
+    iter = NpyIter_MultiNew(nop, op_, flags, NPY_KEEPORDER, NPY_SAME_KIND_CASTING,
                             op_flags, op_dtypes);
-    if (!iter)
+    if (iter == NULL)
         goto fail;
 
     if (NpyIter_GetIterSize(iter) != 0) {
-        NpyIter_IterNextFunc* iternext = NpyIter_GetIterNext(iter, NULL);
-        char** dataptr = NpyIter_GetDataPtrArray(iter);
-        npy_intp* sizeptr = NpyIter_GetInnerLoopSizePtr(iter);
+        NpyIter_IterNextFunc *iternext = NpyIter_GetIterNext(iter, NULL);
+        npy_intp *sizeptr = NpyIter_GetInnerLoopSizePtr(iter);
+        npy_intp *stride = NpyIter_GetInnerStrideArray(iter);
+        char **data = NpyIter_GetDataPtrArray(iter);
         if (!iternext)
             goto iterfail;
         do {
-            func(args, *sizeptr, (void**)dataptr);
+            func(args, *sizeptr, data, stride);
         } while (iternext(iter));
     }
 
@@ -139,11 +138,23 @@ fail:
 }
 
 
-static void vang2vec(void* args, npy_intp size, void** data) {
-    double* theta = data[0], *phi = data[1];
-    double* x = data[2], *y = data[3], *z = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        setvec(ang2vec((t_ang){theta[i], phi[i]}), &x[i], &y[i], &z[i]);
+static void vang2vec(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        setvec(
+            ang2vec((t_ang){
+                *(double *)data[0],
+                *(double *)data[1],
+            }),
+            (double *)data[2],
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -166,11 +177,23 @@ static PyObject* cang2vec(PyObject* self, PyObject* args) {
 }
 
 
-static void vvec2ang(void* args, npy_intp size, void** data) {
-    double* x = data[0], *y = data[1], *z = data[2];
-    double* theta = data[3], *phi = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        setang(vec2ang((t_vec){x[i], y[i], z[i]}), &theta[i], &phi[i]);
+static void vvec2ang(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        setang(
+            vec2ang((t_vec){
+                *(double *)data[0],
+                *(double *)data[1],
+                *(double *)data[2],
+            }),
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -193,12 +216,20 @@ static PyObject* cvec2ang(PyObject* self, PyObject* args) {
 }
 
 
-static void vang2nest(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* theta = data[0], *phi = data[1];
-    int64_t* ipix = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = ang2nest(nside, (t_ang){theta[i], phi[i]});
+static void vang2nest(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[2] = ang2nest(
+            nside,
+            (t_ang){
+                *(double *)data[0],
+                *(double *)data[1],
+            }
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
@@ -222,13 +253,20 @@ static PyObject* cang2nest(PyObject* self, PyObject* args) {
 }
 
 
-static void vang2ring(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* theta = data[0];
-    double* phi = data[1];
-    int64_t* ipix = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = ang2ring(nside, (t_ang){theta[i], phi[i]});
+static void vang2ring(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[2] = ang2ring(
+            nside,
+            (t_ang){
+                *(double *)data[0],
+                *(double *)data[1],
+            }
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
@@ -252,12 +290,18 @@ static PyObject* cang2ring(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2ang(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* theta = data[1], *phi = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        setang(nest2ang(nside, ipix[i]), &theta[i], &phi[i]);
+static void vnest2ang(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setang(
+            nest2ang(nside, *(npy_int64 *)data[0]),
+            (double *)data[1],
+            (double *)data[2]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
@@ -281,12 +325,18 @@ static PyObject* cnest2ang(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2ang(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* theta = data[1], *phi = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        setang(ring2ang(nside, ipix[i]), &theta[i], &phi[i]);
+static void vring2ang(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setang(
+            ring2ang(nside, *(npy_int64 *)data[0]),
+            (double *)data[1],
+            (double *)data[2]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
@@ -309,12 +359,22 @@ static PyObject* cring2ang(PyObject* self, PyObject* args) {
 }
 
 
-static void vvec2nest(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* x = data[0], *y = data[1], *z = data[2];
-    int64_t* ipix = data[3];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = vec2nest(nside, (t_vec){x[i], y[i], z[i]});
+static void vvec2nest(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[3] = vec2nest(
+            nside,
+            (t_vec){
+                *(double *)data[0],
+                *(double *)data[1],
+                *(double *)data[2],
+            }
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+    }
 }
 
 
@@ -338,12 +398,22 @@ static PyObject* cvec2nest(PyObject* self, PyObject* args) {
 }
 
 
-static void vvec2ring(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* x = data[0], *y = data[1], *z = data[2];
-    int64_t* ipix = data[3];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = vec2ring(nside, (t_vec){x[i], y[i], z[i]});
+static void vvec2ring(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[3] = vec2ring(
+            nside,
+            (t_vec){
+                *(double *)data[0],
+                *(double *)data[1],
+                *(double *)data[2],
+            }
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+    }
 }
 
 
@@ -367,12 +437,20 @@ static PyObject* cvec2ring(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2vec(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* x = data[1], *y = data[2], *z = data[3];
-    for (npy_intp i = 0; i < size; ++i)
-        setvec(nest2vec(nside, ipix[i]), &x[i], &y[i], &z[i]);
+static void vnest2vec(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setvec(
+            nest2vec(nside, *(npy_int64 *)data[0]),
+            (double *)data[1],
+            (double *)data[2],
+            (double *)data[3]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+    }
 }
 
 
@@ -396,12 +474,20 @@ static PyObject* cnest2vec(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2vec(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* x = data[1], *y = data[2], *z = data[3];
-    for (npy_intp i = 0; i < size; ++i)
-        setvec(ring2vec(nside, ipix[i]), &x[i], &y[i], &z[i]);
+static void vring2vec(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setvec(
+            ring2vec(nside, *(npy_int64 *)data[0]),
+            (double *)data[1],
+            (double *)data[2],
+            (double *)data[3]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+    }
 }
 
 
@@ -425,13 +511,24 @@ static PyObject* cring2vec(PyObject* self, PyObject* args) {
 }
 
 
-static void vang2nest_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* theta = data[0], *phi = data[1];
-    int64_t* ipix = data[2];
-    double* u = data[3], *v = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = ang2nest_uv(nside, (t_ang){theta[i], phi[i]}, &u[i], &v[i]);
+static void vang2nest_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[2] = ang2nest_uv(
+            nside,
+            (t_ang){
+                *(double *)data[0],
+                *(double *)data[1],
+            },
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -455,13 +552,24 @@ static PyObject* cang2nest_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vang2ring_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* theta = data[0], *phi = data[1];
-    int64_t* ipix = data[2];
-    double* u = data[3], *v = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = ang2ring_uv(nside, (t_ang){theta[i], phi[i]}, &u[i], &v[i]);
+static void vang2ring_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[2] = ang2ring_uv(
+            nside,
+            (t_ang){
+                *(double *)data[0],
+                *(double *)data[1],
+            },
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -485,13 +593,25 @@ static PyObject* cang2ring_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2ang_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* u = data[1], *v = data[2];
-    double* theta = data[3], *phi = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        setang(nest2ang_uv(nside, ipix[i], u[i], v[i]), &theta[i], &phi[i]);
+static void vnest2ang_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setang(
+            nest2ang_uv(
+                nside,
+                *(npy_int64 *)data[0],
+                *(double *)data[1],
+                *(double *)data[2]
+            ),
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -515,13 +635,25 @@ static PyObject* cnest2ang_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2ang_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* u = data[1], *v = data[2];
-    double* theta = data[3], *phi = data[4];
-    for (npy_intp i = 0; i < size; ++i)
-        setang(ring2ang_uv(nside, ipix[i], u[i], v[i]), &theta[i], &phi[i]);
+static void vring2ang_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setang(
+            ring2ang_uv(
+                nside,
+                *(npy_int64 *)data[0],
+                *(double *)data[1],
+                *(double *)data[2]
+            ),
+            (double *)data[3],
+            (double *)data[4]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+    }
 }
 
 
@@ -544,13 +676,26 @@ static PyObject* cring2ang_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vvec2nest_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* x = data[0], *y = data[1], *z = data[2];
-    int64_t* ipix = data[3];
-    double* u = data[4], *v = data[5];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = vec2nest_uv(nside, (t_vec){x[i], y[i], z[i]}, &u[i], &v[i]);
+static void vvec2nest_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[3] = vec2nest_uv(
+            nside,
+            (t_vec){
+                *(double *)data[0],
+                *(double *)data[1],
+                *(double *)data[2],
+            },
+            (double *)data[4],
+            (double *)data[5]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+        data[5] += stride[5];
+    }
 }
 
 
@@ -575,13 +720,26 @@ static PyObject* cvec2nest_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vvec2ring_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    double* x = data[0], *y = data[1], *z = data[2];
-    int64_t* ipix = data[3];
-    double* u = data[4], *v = data[5];
-    for (npy_intp i = 0; i < size; ++i)
-        ipix[i] = vec2ring_uv(nside, (t_vec){x[i], y[i], z[i]}, &u[i], &v[i]);
+static void vvec2ring_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[3] = vec2ring_uv(
+            nside,
+            (t_vec){
+                *(double *)data[0],
+                *(double *)data[1],
+                *(double *)data[2],
+            },
+            (double *)data[4],
+            (double *)data[5]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+        data[5] += stride[5];
+    }
 }
 
 
@@ -606,13 +764,27 @@ static PyObject* cvec2ring_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2vec_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* u = data[1], *v = data[2];
-    double* x = data[3], *y = data[4], *z = data[5];
-    for (npy_intp i = 0; i < size; ++i)
-        setvec(nest2vec_uv(nside, ipix[i], u[i], v[i]), &x[i], &y[i], &z[i]);
+static void vnest2vec_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setvec(
+            nest2vec_uv(
+                nside,
+                *(npy_int64 *)data[0],
+                *(double *)data[1], 
+                *(double *)data[2]
+            ),
+            (double *)data[3],
+            (double *)data[4],
+            (double *)data[5]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+        data[5] += stride[5];
+    }
 }
 
 
@@ -637,13 +809,27 @@ static PyObject* cnest2vec_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2vec_uv(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipix = data[0];
-    double* u = data[1], *v = data[2];
-    double* x = data[3], *y = data[4], *z = data[5];
-    for (npy_intp i = 0; i < size; ++i)
-        setvec(ring2vec_uv(nside, ipix[i], u[i], v[i]), &x[i], &y[i], &z[i]);
+static void vring2vec_uv(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        setvec(
+            ring2vec_uv(
+                nside,
+                *(npy_int64 *)data[0],
+                *(double *)data[1], 
+                *(double *)data[2]
+            ),
+            (double *)data[3],
+            (double *)data[4],
+            (double *)data[5]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+        data[3] += stride[3];
+        data[4] += stride[4];
+        data[5] += stride[5];
+    }
 }
 
 
@@ -668,11 +854,13 @@ static PyObject* cring2vec_uv(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2nest(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipring = data[0], *ipnest = data[1];
-    for (npy_intp i = 0; i < size; ++i)
-        ipnest[i] = ring2nest(nside, ipring[i]);
+static void vring2nest(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[1] = ring2nest(nside, *(npy_int64 *)data[0]);
+        data[0] += stride[0];
+        data[1] += stride[1];
+    }
 }
 
 
@@ -694,11 +882,13 @@ static PyObject* cring2nest(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2ring(void* args, npy_intp size, void** data) {
-    int64_t nside = *(int64_t*)args;
-    int64_t* ipring = data[0], *ipnest = data[1];
-    for (npy_intp i = 0; i < size; ++i)
-        ipnest[i] = nest2ring(nside, ipring[i]);
+static void vnest2ring(void *args, npy_intp size, char **data, npy_intp *stride) {
+    Py_ssize_t nside = *(Py_ssize_t *)args;
+    while (size--) {
+        *(npy_int64 *)data[1] = nest2ring(nside, *(npy_int64 *)data[0]);
+        data[0] += stride[0];
+        data[1] += stride[1];
+    }
 }
 
 
@@ -724,15 +914,14 @@ PyDoc_STRVAR(cnside2npix_doc, "nside2npix(nside, /)\n--\n\n");
 
 
 static PyObject* cnside2npix(PyObject* self, PyObject* args) {
-    Py_ssize_t nside;
-    int64_t npix;
+    Py_ssize_t nside, npix;
 
     if (!PyArg_ParseTuple(args, "n:nside2npix", &nside))
         return NULL;
 
     npix = nside2npix(nside);
 
-    return Py_BuildValue("n", (Py_ssize_t)npix);
+    return Py_BuildValue("n", npix);
 }
 
 
@@ -740,34 +929,72 @@ PyDoc_STRVAR(cnpix2nside_doc, "npix2nside(npix, /)\n--\n\n");
 
 
 static PyObject* cnpix2nside(PyObject* self, PyObject* args) {
-    Py_ssize_t npix;
-    int64_t nside;
+    Py_ssize_t npix, nside;
 
     if (!PyArg_ParseTuple(args, "n:npix2nside", &npix))
         return NULL;
 
     nside = npix2nside(npix);
 
-    return Py_BuildValue("n", (Py_ssize_t)nside);
+    return Py_BuildValue("n", nside);
 }
 
 
-static void vuniq2nest(void* args, npy_intp size, void** data) {
-    int64_t* uniq = data[0], *nside = data[1], *ipix = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        setpix(uniq2nest(uniq[i]), &nside[i], &ipix[i]);
+PyDoc_STRVAR(cnside2order_doc, "nside2order(nside, /)\n--\n\n");
+
+
+static PyObject* cnside2order(PyObject* self, PyObject* args) {
+    Py_ssize_t nside;
+    int order;
+
+    if (!PyArg_ParseTuple(args, "n:nside2order", &nside))
+        return NULL;
+
+    order = nside2order(nside);
+
+    return Py_BuildValue("i", order);
+}
+
+
+PyDoc_STRVAR(corder2nside_doc, "order2nside(order, /)\n--\n\n");
+
+
+static PyObject* corder2nside(PyObject* self, PyObject* args) {
+    int order;
+    Py_ssize_t nside;
+
+    if (!PyArg_ParseTuple(args, "i:order2nside", &order))
+        return NULL;
+
+    nside = order2nside(order);
+
+    return Py_BuildValue("n", nside);
+}
+
+
+static void vuniq2nest(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        setpix(
+            uniq2nest(*(npy_int64 *)data[0]),
+            (npy_int8 *)data[1],
+            (npy_int64 *)data[2]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
 PyDoc_STRVAR(cuniq2nest_doc,
-"uniq2nest(uniq, nside=None, ipix=None, /)\n"
+"uniq2nest(uniq, order=None, ipix=None, /)\n"
 "--\n"
 "\n");
 
 
 static PyObject* cuniq2nest(PyObject* self, PyObject* args) {
     PyObject* op[] = {NULL, NULL, NULL};
-    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+    int types[] = {NPY_INT64, NPY_INT8, NPY_INT64};
 
     if (!PyArg_ParseTuple(args, "O|OO:uniq2nest", &op[0], &op[1], &op[2]))
         return NULL;
@@ -776,22 +1003,29 @@ static PyObject* cuniq2nest(PyObject* self, PyObject* args) {
 }
 
 
-static void vuniq2ring(void* args, npy_intp size, void** data) {
-    int64_t* uniq = data[0], *nside = data[1], *ipix = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        setpix(uniq2ring(uniq[i]), &nside[i], &ipix[i]);
+static void vuniq2ring(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        setpix(
+            uniq2ring(*(npy_int64 *)data[0]),
+            (npy_int8 *)data[1],
+            (npy_int64 *)data[2]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
 PyDoc_STRVAR(cuniq2ring_doc,
-"uniq2ring(uniq, nside=None, ipix=None, /)\n"
+"uniq2ring(uniq, order=None, ipix=None, /)\n"
 "--\n"
 "\n");
 
 
 static PyObject* cuniq2ring(PyObject* self, PyObject* args) {
     PyObject* op[] = {NULL, NULL, NULL};
-    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+    int types[] = {NPY_INT64, NPY_INT8, NPY_INT64};
 
     if (!PyArg_ParseTuple(args, "O|OO:uniq2ring", &op[0], &op[1], &op[2]))
         return NULL;
@@ -800,22 +1034,28 @@ static PyObject* cuniq2ring(PyObject* self, PyObject* args) {
 }
 
 
-static void vnest2uniq(void* args, npy_intp size, void** data) {
-    int64_t* nside = data[0], *ipix = data[1], *uniq = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        uniq[i] = nest2uniq(nside[i], ipix[i]);
+static void vnest2uniq(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        *(npy_int64 *)data[2] = nest2uniq(
+            *(npy_int8 *)data[0],
+            *(npy_int64 *)data[1]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
 PyDoc_STRVAR(cnest2uniq_doc,
-"nest2uniq(nside, ipix, uniq=None, /)\n"
+"nest2uniq(order, ipix, uniq=None, /)\n"
 "--\n"
 "\n");
 
 
 static PyObject* cnest2uniq(PyObject* self, PyObject* args) {
     PyObject* op[] = {NULL, NULL, NULL};
-    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+    int types[] = {NPY_INT8, NPY_INT64, NPY_INT64};
 
     if (!PyArg_ParseTuple(args, "OO|O:nest2uniq", &op[0], &op[1], &op[2]))
         return NULL;
@@ -824,22 +1064,28 @@ static PyObject* cnest2uniq(PyObject* self, PyObject* args) {
 }
 
 
-static void vring2uniq(void* args, npy_intp size, void** data) {
-    int64_t* nside = data[0], *ipix = data[1], *uniq = data[2];
-    for (npy_intp i = 0; i < size; ++i)
-        uniq[i] = ring2uniq(nside[i], ipix[i]);
+static void vring2uniq(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        *(npy_int64 *)data[2] = ring2uniq(
+            *(npy_int8 *)data[0],
+            *(npy_int64 *)data[1]
+        );
+        data[0] += stride[0];
+        data[1] += stride[1];
+        data[2] += stride[2];
+    }
 }
 
 
 PyDoc_STRVAR(cring2uniq_doc,
-"ring2uniq(nside, ipix, uniq=None, /)\n"
+"ring2uniq(order, ipix, uniq=None, /)\n"
 "--\n"
 "\n");
 
 
 static PyObject* cring2uniq(PyObject* self, PyObject* args) {
     PyObject* op[] = {NULL, NULL, NULL};
-    int types[] = {NPY_INT64, NPY_INT64, NPY_INT64};
+    int types[] = {NPY_INT8, NPY_INT64, NPY_INT64};
 
     if (!PyArg_ParseTuple(args, "OO|O:ring2uniq", &op[0], &op[1], &op[2]))
         return NULL;
@@ -848,7 +1094,7 @@ static PyObject* cring2uniq(PyObject* self, PyObject* args) {
 }
 
 
-static const char* version = "2023.4";
+static const char* version = "2024.1";
 
 
 static PyMethodDef methods[] = {
@@ -874,6 +1120,8 @@ static PyMethodDef methods[] = {
     {"nest2ring", cnest2ring, METH_VARARGS, cnest2ring_doc},
     {"nside2npix", cnside2npix, METH_VARARGS, cnside2npix_doc},
     {"npix2nside", cnpix2nside, METH_VARARGS, cnpix2nside_doc},
+    {"nside2order", cnside2order, METH_VARARGS, cnside2order_doc},
+    {"order2nside", corder2nside, METH_VARARGS, corder2nside_doc},
     {"uniq2nest", cuniq2nest, METH_VARARGS, cuniq2nest_doc},
     {"uniq2ring", cuniq2ring, METH_VARARGS, cuniq2ring_doc},
     {"nest2uniq", cnest2uniq, METH_VARARGS, cnest2uniq_doc},

@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 import numpy.testing as npt
 
@@ -77,11 +76,12 @@ def test_vec_pix(nside, nest):
 
 def test_uniq_pix(nest):
     from healpix import uniq2pix, pix2uniq, ring2nest
-    nside = 2**np.random.randint(0, 30, 1000)
+    order = np.random.randint(0, 30, 1000)
+    nside = 1 << order
     ipix = np.random.randint(0, 12*nside**2)
     ipnest = ipix if nest else [ring2nest(ns, ip) for ns, ip in zip(nside, ipix)]
-    uniq = pix2uniq(nside, ipix, nest)
+    uniq = pix2uniq(order, ipix, nest)
     npt.assert_array_equal(uniq, 4*nside**2 + ipnest)
-    nside_out, ipix_out = uniq2pix(uniq, nest)
-    npt.assert_array_equal(nside_out, nside)
+    order_out, ipix_out = uniq2pix(uniq, nest)
+    npt.assert_array_equal(order_out, order)
     npt.assert_array_equal(ipix_out, ipix)
