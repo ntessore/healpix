@@ -26,4 +26,4 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - run: pip install '.[test]'
-    - run: pytest --pyargs healpix
+    - run: pytest -v --pyargs healpix
