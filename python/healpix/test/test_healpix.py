@@ -1,21 +1,20 @@
-import pytest
 import numpy as np
 import numpy.testing as npt
 
 from . import assert_shape
 
 
-def test_ang2vec(lonlat, size):
+def test_ang2vec(lonlat, size, rng):
     from healpix import ang2vec
     if lonlat:
-        theta_lon = np.random.uniform(0, 360, size=size)
-        phi_lat = np.random.uniform(-90, 90, size=size)
+        theta_lon = rng.uniform(0, 360, size=size)
+        phi_lat = rng.uniform(-90, 90, size=size)
         x_ = np.cos(np.deg2rad(phi_lat))*np.cos(np.deg2rad(theta_lon))
         y_ = np.cos(np.deg2rad(phi_lat))*np.sin(np.deg2rad(theta_lon))
         z_ = np.sin(np.deg2rad(phi_lat))
     else:
-        theta_lon = np.random.uniform(0, np.pi, size=size)
-        phi_lat = np.random.uniform(0, 2*np.pi, size=size)
+        theta_lon = rng.uniform(0, np.pi, size=size)
+        phi_lat = rng.uniform(0, 2*np.pi, size=size)
         x_ = np.sin(theta_lon)*np.cos(phi_lat)
         y_ = np.sin(theta_lon)*np.sin(phi_lat)
         z_ = np.cos(theta_lon)
@@ -28,11 +27,11 @@ def test_ang2vec(lonlat, size):
     assert_shape(z, size)
 
 
-def test_vec2ang(lonlat, size):
+def test_vec2ang(lonlat, size, rng):
     from healpix import vec2ang
-    x = np.random.standard_normal(size)
-    y = np.random.standard_normal(size)
-    z = np.random.standard_normal(size)
+    x = rng.standard_normal(size)
+    y = rng.standard_normal(size)
+    z = rng.standard_normal(size)
     theta_, phi_ = np.arctan2(np.hypot(x, y), z), np.arctan2(y, x)
     if lonlat:
         theta_, phi_ = np.rad2deg(phi_), np.rad2deg(np.pi/2-theta_)
@@ -75,13 +74,14 @@ def test_vec_pix(nside, nest):
     npt.assert_array_equal(vec2pix(nside, *pix2vec(nside, ipix, nest), nest), ipix)
 
 
-def test_uniq_pix(nest):
+def test_uniq_pix(nest, rng):
     from healpix import uniq2pix, pix2uniq, ring2nest
-    nside = 2**np.random.randint(0, 30, 1000)
-    ipix = np.random.randint(0, 12*nside**2)
+    order = rng.integers(0, 30, 1000)
+    nside = 1 << order
+    ipix = rng.integers(0, 12*nside**2)
     ipnest = ipix if nest else [ring2nest(ns, ip) for ns, ip in zip(nside, ipix)]
-    uniq = pix2uniq(nside, ipix, nest)
+    uniq = pix2uniq(order, ipix, nest)
     npt.assert_array_equal(uniq, 4*nside**2 + ipnest)
-    nside_out, ipix_out = uniq2pix(uniq, nest)
-    npt.assert_array_equal(nside_out, nside)
+    order_out, ipix_out = uniq2pix(uniq, nest)
+    npt.assert_array_equal(order_out, order)
     npt.assert_array_equal(ipix_out, ipix)

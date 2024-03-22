@@ -26,7 +26,7 @@ static double invz(double z, double s) {
 
 
 // count leading zeros
-static inline int clz(uint64_t x) {
+static inline uint8_t clz(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_clzll(x);
 #elif defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_X64))
@@ -51,8 +51,8 @@ static inline int clz(uint64_t x) {
 }
 
 // fast integer log2
-int ilog2(uint64_t x) {
-    return x == 0 ? -1 : 63 - clz(x);
+int8_t ilog2(uint64_t x) {
+    return x > 0 ? 63 - clz(x) : -1;
 }
 
 
@@ -369,6 +369,19 @@ int64_t nside2npix(int64_t nside) {
 }
 
 
+int8_t nside2order(int64_t nside) {
+    // power of two check
+    if ((nside & (nside-1)) != 0)
+        return -1;
+    return ilog2(nside);
+}
+
+
+int64_t order2nside(int8_t order) {
+    return order >= 0 ? (int64_t)1 << order : -1;
+}
+
+
 double vec_angle(t_vec v1, t_vec v2) {
     t_vec cross = {
         v1.y*v2.z - v1.z*v2.y,
@@ -471,28 +484,37 @@ t_pix uniq2nest(int64_t uniq) {
     if (uniq < 4) {
         return (t_pix){-1, -1};
     } else {
-        int order = ilog2(uniq)/2 - 1;
-        return (t_pix){1ll << order, uniq - 4*(1ll << 2*order)};
+        int8_t order = ilog2(uniq)/2 - 1;
+        return (t_pix){order, uniq - ((int64_t)1 << 2*(order+1))};
     }
 }
 
 
 t_pix uniq2ring(int64_t uniq) {
-    t_pix pix = uniq2nest(uniq);
-    pix.ipix = nest2ring(pix.nside, pix.ipix);
-    return pix;
-}
-
-
-int64_t nest2uniq(int64_t nside, int64_t ipix) {
-    if (nside < 0 || ipix < 0) {
-        return -1;
+    if (uniq < 4) {
+        return (t_pix){-1, -1};
     } else {
-        return 4*nside*nside + ipix;
+        t_pix pix = uniq2nest(uniq);
+        pix.ipix = nest2ring(order2nside(pix.order), pix.ipix);
+        return pix;
     }
 }
 
 
-int64_t ring2uniq(int64_t nside, int64_t ipix) {
-    return nest2uniq(nside, ring2nest(nside, ipix));
+int64_t nest2uniq(int8_t order, int64_t ipix) {
+    if (order < 0 || ipix < 0) {
+        return -1;
+    } else {
+        return ((int64_t)1 << 2*(order+1)) + ipix;
+    }
+}
+
+
+int64_t ring2uniq(int8_t order, int64_t ipix) {
+    if (order < 0 || ipix < 0) {
+        return -1;
+    } else {
+        int64_t nside = order2nside(order);
+        return 4*nside*nside + ring2nest(nside, ipix);
+    }
 }

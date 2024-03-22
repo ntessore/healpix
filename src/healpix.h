@@ -121,6 +121,14 @@ int64_t nside2npix(int64_t nside);
 int64_t npix2nside(int64_t npix);
 
 
+// Returns log2(nside).
+int8_t nside2order(int64_t nside);
+
+
+// Returns log2(npix).
+int64_t order2nside(int8_t order);
+
+
 // Returns the angle (in radians) between the vectors v1 and v2.
 // The result is accurate even for angles close to 0 and pi.
 double vec_angle(t_vec v1, t_vec v2);
@@ -164,9 +172,9 @@ t_vec ring2vec_uv(int64_t nside, int64_t ipix, double u, double v);
 // Conversions to UNIQ pixel index scheme
 
 
-// Describe a pixel index in RING or NEST scheme and its nside parameter
+// Describe a pixel index in RING or NEST scheme and its order parameter
 typedef struct {
-    int64_t nside;
+    int8_t order;
     int64_t ipix;
 } t_pix;
 
@@ -179,12 +187,12 @@ t_pix uniq2nest(int64_t uniq);
 t_pix uniq2ring(int64_t uniq);
 
 
-// Convert from NEST scheme and nside parameter to UNIQ
-int64_t nest2uniq(int64_t nside, int64_t ipix);
+// Convert from NEST scheme and order parameter to UNIQ
+int64_t nest2uniq(int8_t order, int64_t ipix);
 
 
-// Convert from RING scheme and nside parameter to UNIQ
-int64_t ring2uniq(int64_t nside, int64_t ipix);
+// Convert from RING scheme and order parameter to UNIQ
+int64_t ring2uniq(int8_t order, int64_t ipix);
 
 
 #ifdef __cplusplus
