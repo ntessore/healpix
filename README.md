@@ -6,6 +6,8 @@ healpix
 This package implements a lean set of routines for working with the HEALPix
 discretisation of the sphere.  It supports NSIDE parameters up to 2^29.
 
+The online documentation can be found [here](http://healpix.readthedocs.io).
+
 The C library is based on the *healpix_bare* library, which was released under
 the 3-clause BSD license, with the following additions:
 
@@ -38,9 +40,6 @@ The Python package consists of two modules:
 
   * Random point picking in HEALPix pixels.
 
-For a function reference, run `pydoc healpix` (or `pydoc chealpix`) locally if
-you have the package installed, or see the [online reference][pydoc].
-
 The high-level functions in the `healpix` module can be used more or less
 interchangeably with functions from the *healpy* package.  However, in some
 cases, compatibility is sacrificed for consistency.
@@ -67,5 +66,3 @@ and therefore have minimal memory overhead:
 >>> 
 >>> # no memory overhead: only the 2G output arrays were used
 ```
-
-[pydoc]: https://github.com/ntessore/healpix/raw/main/python/reference.txt
