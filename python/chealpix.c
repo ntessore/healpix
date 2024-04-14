@@ -91,11 +91,14 @@ PyObject* vectorize(vecfunc func, void* args, npy_intp nin, npy_intp nout,
         npy_intp *sizeptr = NpyIter_GetInnerLoopSizePtr(iter);
         npy_intp *stride = NpyIter_GetInnerStrideArray(iter);
         char **data = NpyIter_GetDataPtrArray(iter);
+        NPY_BEGIN_THREADS_DEF
         if (!iternext)
             goto iterfail;
+        NPY_BEGIN_THREADS_THRESHOLDED(NpyIter_GetIterSize(iter))
         do {
             func(args, *sizeptr, data, stride);
         } while (iternext(iter));
+        NPY_END_THREADS
     }
 
     out = &NpyIter_GetOperandArray(iter)[nin];
