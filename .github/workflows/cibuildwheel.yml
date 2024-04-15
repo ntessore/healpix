@@ -14,24 +14,31 @@ on:
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.runs-on }}
-    runs-on: ${{ matrix.runs-on }}
+    name: Build wheels on ${{ matrix.os }}
+    os: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_BUILD: 'cp*'
+          CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.runs-on }}
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -45,8 +52,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-sdist
-          path: dist
+          name: cibw-sdist
+          path: dist/*.tar.gz
 
   upload_pypi:
     name: Upload to PyPI
@@ -58,8 +65,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: dist-*
-          merge-multiple: true
+          pattern: cibw-*
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
