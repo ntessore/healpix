@@ -1,4 +1,38 @@
 [build-system]
 requires = ["setuptools", "wheel", "oldest-supported-numpy"]
-
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "healpix"
+description = "Python package for HEALPix discretisation of the sphere"
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+maintainers = [
+    {name = "Nicolas Tessore", email = "n.tessore@ucl.ac.uk"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.6"
+dependencies = [
+    "numpy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/ntessore/healpix"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[tool.setuptools]
+package-dir = {"" = "python"}
+packages = ["healpix", "healpix.test"]
+include-package-data = false
+
+[tool.setuptools.dynamic.version]
+attr = "healpix.__version__"
