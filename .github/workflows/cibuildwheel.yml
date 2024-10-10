@@ -11,6 +11,23 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Build ref
+        required: true
+        type: string
+      build:
+        description: CIBW_BUILD
+        type: string
+      skip:
+        description: CIBW_SKIP
+        type: string
+      sdist:
+        description: Build sdist
+        type: boolean
+      upload:
+        description: Upload to PyPI
+        type: boolean
 
 jobs:
   build_wheels:
@@ -23,11 +40,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || '' }}
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
-          CIBW_BUILD: 'cp*'
+          CIBW_BUILD: ${{ inputs.build || 'cp*' }}
+          CIBW_SKIP: ${{ inputs.skip || '' }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -37,6 +57,7 @@ jobs:
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
+    if: github.event_name == 'release' || inputs.sdist
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +73,11 @@ jobs:
     name: Upload to PyPI
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: |
+      always()
+      && (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'skipped')
+      && (needs.build_sdist.result == 'success' || needs.build_sdist.result == 'skipped')
+      && (github.event_name == 'release' && github.event.action == 'published' || inputs.upload)
     permissions:
       id-token: write
     steps:
