@@ -11,6 +11,16 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      CIBW_BUILD:
+        description: CIBW_BUILD
+        type: string
+      CIBW_SKIP:
+        description: CIBW_SKIP
+        type: string
+      upload:
+        description: Upload to PyPI
+        type: boolean
 
 jobs:
   build_wheels:
@@ -27,7 +37,8 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
-          CIBW_BUILD: 'cp*'
+          CIBW_BUILD: ${{ inputs.CIBW_BUILD || 'cp*' }}
+          CIBW_SKIP: ${{ inputs.CIBW_SKIP }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -52,7 +63,7 @@ jobs:
     name: Upload to PyPI
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'release' && github.event.action == 'published' || inputs.upload
     permissions:
       id-token: write
     steps:
