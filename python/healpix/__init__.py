@@ -2,9 +2,6 @@
 # license: BSD-3-Clause
 '''Python package for HEALPix discretisation of the sphere'''
 
-__version__ = '2024.2'
-
-
 import numpy as np
 import chealpix as _chp
 
