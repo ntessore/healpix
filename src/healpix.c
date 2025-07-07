@@ -277,14 +277,16 @@ int64_t ring2nest(int64_t nside, int64_t ipring) {
 
 static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
     t_hpd hpd;
+    double x, y;
+    int32_t f;
     double za = fabs(loc.z);
-    double x = loc.phi*(1./(2.*PI));
-    if (x < 0.) {
-        x += (int64_t)x + 1.;
-    } else if (x >= 1.) {
-        x -= (int64_t)x;
+    double tt = loc.phi*(1./(2.*PI));
+    if (tt < 0.) {
+        tt += (int64_t)tt + 1.;
+    } else if (tt >= 1.) {
+        tt -= (int64_t)tt;
     }
-    double tt = 4.*x;
+    tt = 4.*tt;
 
     if (za <= 2./3.) {
         // equatorial region
@@ -294,13 +296,9 @@ static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
         double jm = temp1+temp2;    // index of descending edge line, [0; 5)
         int ifp = (int)jp;          // in {0,4}
         int ifm = (int)jm;
-        hpd.x = (jm-ifm)*nside;
-        hpd.y = (1+ifp - jp)*nside;
-        hpd.f = (ifp==ifm) ? (ifp|4) : ((ifp<ifm) ? ifp : (ifm+8));
-        if (u) {
-            *u = (jm-ifm)*nside - hpd.x;
-            *v = (1+ifp - jp)*nside - hpd.y;
-        }
+        x = (jm-ifm)*nside;
+        y = (1+ifp - jp)*nside;
+        f = (ifp==ifm) ? (ifp|4) : ((ifp<ifm) ? ifp : (ifm+8));
     } else {
         // polar region
         int64_t ntt = (int64_t)tt;
@@ -323,13 +321,16 @@ static t_hpd loc2hpd(int64_t nside, t_loc loc, double* u, double* v) {
         } else {
             ntt += 8;
         }
-        hpd.x = jp*nside;
-        hpd.y = jm*nside;
-        hpd.f = ntt;
-        if (u) {
-            *u = jp*nside - hpd.x;
-            *v = jm*nside - hpd.y;
-        }
+        x = jp*nside;
+        y = jm*nside;
+        f = ntt;
+    }
+    hpd.x = fmin(x, nside - 0.5);
+    hpd.y = fmin(y, nside - 0.5);
+    hpd.f = f;
+    if (u) {
+        *u = x - hpd.x;
+        *v = y - hpd.y;
     }
     return hpd;
 }

@@ -142,3 +142,25 @@ def test_uniq_ring(order):
     order_out, ipix_out = uniq2ring(ring2uniq(order, ipix))
     npt.assert_array_equal(order_out, order)
     npt.assert_array_equal(ipix_out, ipix)
+
+
+def test_gh73():
+    """
+    Test for https://github.com/ntessore/healpix/issues/73
+    """
+
+    from chealpix import ang2nest
+
+    nside = 2
+    theta = np.array([0.1, 0.5 * np.pi, np.pi - 0.1])[:, None]
+    phi = np.array([0.0, 0.5 * np.pi, np.pi, 1.5 * np.pi])
+
+    expected = [
+        [3, 7, 11, 15],
+        [19, 23, 27, 31],
+        [32, 36, 40, 44],
+    ]
+
+    got = ang2nest(nside, theta, phi)
+
+    npt.assert_array_equal(got, expected)
