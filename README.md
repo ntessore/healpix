@@ -11,6 +11,8 @@ the 3-clause BSD license, with the following additions:
 
 * Sub-pixel indexing.
 * Conversions between the UNIQ and RING/NEST pixel indexing schemes.
+* `uniq2zuniq` and `zuniq2uniq` convert between the two multi-order indexing
+  schemes in the [CF conventions](https://cfconventions.org/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#healpix).
 
 If you are using this code in your research, please consider citing the
 original paper in your publications:

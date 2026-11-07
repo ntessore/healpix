@@ -4,6 +4,7 @@
 
 import numpy as np
 import chealpix as _chp
+from chealpix import uniq2zuniq, zuniq2uniq
 
 
 NSIDE_MAX = _chp.NSIDE_MAX

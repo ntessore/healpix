@@ -1097,6 +1097,56 @@ static PyObject* cring2uniq(PyObject* self, PyObject* args) {
 }
 
 
+static void vuniq2zuniq(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        *(npy_int64 *)data[1] = uniq2zuniq(*(npy_int64 *)data[0]);
+        data[0] += stride[0];
+        data[1] += stride[1];
+    }
+}
+
+
+PyDoc_STRVAR(cuniq2zuniq_doc,
+"uniq2zuniq(uniq, ipix=None, /)\n"
+"--\n"
+"\n"
+"Convert a UNIQ index to ZUNIQ. Invalid indices give -1.");
+
+
+static PyObject* cuniq2zuniq(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64};
+    if (!PyArg_ParseTuple(args, "O|O:uniq2zuniq", &op[0], &op[1]))
+        return NULL;
+    return vectorize(vuniq2zuniq, NULL, 1, 1, op, types);
+}
+
+
+static void vzuniq2uniq(void *args, npy_intp size, char **data, npy_intp *stride) {
+    while (size--) {
+        *(npy_int64 *)data[1] = zuniq2uniq(*(npy_int64 *)data[0]);
+        data[0] += stride[0];
+        data[1] += stride[1];
+    }
+}
+
+
+PyDoc_STRVAR(czuniq2uniq_doc,
+"zuniq2uniq(zuniq, ipix=None, /)\n"
+"--\n"
+"\n"
+"Convert a ZUNIQ index to UNIQ. Invalid indices give -1.");
+
+
+static PyObject* czuniq2uniq(PyObject* self, PyObject* args) {
+    PyObject* op[] = {NULL, NULL};
+    int types[] = {NPY_INT64, NPY_INT64};
+    if (!PyArg_ParseTuple(args, "O|O:zuniq2uniq", &op[0], &op[1]))
+        return NULL;
+    return vectorize(vzuniq2uniq, NULL, 1, 1, op, types);
+}
+
+
 static const char* version = "2024.1";
 
 
@@ -1129,6 +1179,8 @@ static PyMethodDef methods[] = {
     {"uniq2ring", cuniq2ring, METH_VARARGS, cuniq2ring_doc},
     {"nest2uniq", cnest2uniq, METH_VARARGS, cnest2uniq_doc},
     {"ring2uniq", cring2uniq, METH_VARARGS, cring2uniq_doc},
+    {"uniq2zuniq", cuniq2zuniq, METH_VARARGS, cuniq2zuniq_doc},
+    {"zuniq2uniq", czuniq2uniq, METH_VARARGS, czuniq2uniq_doc},
     {NULL, NULL}
 };
 

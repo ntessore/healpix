@@ -85,3 +85,31 @@ def test_uniq_pix(nest, rng):
     order_out, ipix_out = uniq2pix(uniq, nest)
     npt.assert_array_equal(order_out, order)
     npt.assert_array_equal(ipix_out, ipix)
+
+
+def test_zuniq():
+    from healpix import uniq2zuniq, zuniq2uniq
+
+    # First and last nested cells at every refinement level.
+    order = np.arange(30, dtype=np.int64)
+    face_size = 4**order
+    for nested in (np.zeros_like(order), 12*face_size - 1):
+        uniq = 4*face_size + nested
+        zuniq = (2*nested + 1) * 4**(29-order)
+        npt.assert_array_equal(uniq2zuniq(uniq), zuniq)
+        npt.assert_array_equal(zuniq2uniq(zuniq), uniq)
+
+    # All four children of the first face, with a strided output buffer.
+    out = np.full(8, -1, dtype=np.int64)
+    uniq2zuniq(np.arange(16, 20), out[::2])
+    npt.assert_array_equal(out[::2], np.array([1, 3, 5, 7]) * 4**28)
+    npt.assert_array_equal(out[1::2], -1)
+    npt.assert_array_equal(zuniq2uniq(out[-2::-2]), [19, 18, 17, 16])
+    assert zuniq2uniq(4**29) == 4
+
+
+def test_invalid_zuniq():
+    from healpix import uniq2zuniq, zuniq2uniq
+
+    npt.assert_array_equal(uniq2zuniq([-1, 0, 3, 4**31]), -1)
+    npt.assert_array_equal(zuniq2uniq([-1, 0, 2, 4**30, 24*4**29]), -1)
