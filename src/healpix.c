@@ -481,6 +481,30 @@ t_vec nest2vec_uv(int64_t nside, int64_t ipix, double u, double v) {
 // conversions from or to UNIQ pixel scheme
 
 
+int64_t uniq2zuniq(int64_t uniq) {
+    // At order 29 the last UNIQ index is 4^31 - 1.
+    if (uniq < 4 || uniq >= (INT64_C(1) << 62))
+        return -1;
+
+    t_pix pix = uniq2nest(uniq);
+    return (2*pix.ipix + 1) << (2*(29 - pix.order));
+}
+
+
+int64_t zuniq2uniq(int64_t zuniq) {
+    // Each of the twelve base faces spans 2 * 4^29 ZUNIQ indices.
+    if (zuniq <= 0 || zuniq >= (INT64_C(24) << 58))
+        return -1;
+
+    // The odd factor 2*ipix + 1 is followed by two zero bits per level.
+    int shift = ilog2(zuniq & -zuniq);
+    if (shift > 58 || shift % 2 != 0)
+        return -1;
+
+    return nest2uniq(29 - shift/2, (zuniq >> shift)/2);
+}
+
+
 t_pix uniq2nest(int64_t uniq) {
     if (uniq < 4) {
         return (t_pix){-1, -1};

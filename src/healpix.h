@@ -195,6 +195,12 @@ int64_t nest2uniq(int8_t order, int64_t ipix);
 int64_t ring2uniq(int8_t order, int64_t ipix);
 
 
+// Convert between the two multi-order schemes (orders 0 to 29).
+// Return -1 for an invalid index.
+int64_t uniq2zuniq(int64_t uniq);
+int64_t zuniq2uniq(int64_t zuniq);
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
