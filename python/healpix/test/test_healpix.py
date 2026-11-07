@@ -4,6 +4,13 @@ import numpy.testing as npt
 from . import assert_shape
 
 
+def test_version():
+    from importlib.metadata import version
+    from healpix import __version__
+
+    assert __version__ == version('healpix')
+
+
 def test_ang2vec(lonlat, size, rng):
     from healpix import ang2vec
     if lonlat:

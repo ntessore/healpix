@@ -5,6 +5,8 @@
 import numpy as np
 import chealpix as _chp
 
+from ._version import __version__
+
 
 NSIDE_MAX = _chp.NSIDE_MAX
 '''Maximum admissible value for the NSIDE parameter.

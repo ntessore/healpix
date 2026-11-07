@@ -39,3 +39,4 @@ packages = ["healpix", "healpix.test"]
 include-package-data = false
 
 [tool.setuptools_scm]
+version_file = "python/healpix/_version.py"
